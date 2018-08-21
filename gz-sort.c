@@ -855,8 +855,7 @@ int main(int argc, char **argv)
     // wait for threads, merge everything and clean up
     for (i=0; i < misc.nway; i++)
     {
-        if (nway_table[i].sort_thread)
-            {pthread_join(nway_table[i].sort_thread, NULL);}
+        pthread_join(nway_table[i].sort_thread, NULL);
         unlink(nway_table[i].in_path);
     }
     nway_merge_pass(nway_table, output_path, &misc);
