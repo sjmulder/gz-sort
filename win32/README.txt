@@ -1,16 +1,8 @@
-To build, open a command prompt and:
+This is an experimental port of gz-sort to Windows.
 
-    cd path\to\gz-sort
-    vcvars64
-    nmake /f win32\Makefile
-
-To have a 'dist' directory created and all distribution files copied to it:
-
-    nmake /f win32\Makefile dist
-
-To clean up:
-
-    nmake /f win32\Makefile clean
+Known issues:
+ - Woefully undertested
+ - Automatic tests are yet to be ported
+ - Temporary files are not deleted
 
 Ported bij Sijmen J. Mulder <ik@sjmulder.nl>.
-

@@ -31,6 +31,7 @@ dist: all .phony
 	copy zlib1.dll      win32\dist
 	copy pthreadVC2.dll win32\dist
 	copy getopt.dll     win32\dist
+	copy win32\README.txt    win32\dist\README.win32.txt
 	copy $(GETOPT)\LICENSE   win32\dist\LICENSE.getopt.txt
 	copy $(PTHREADS)\COPYING win32\dist\LICENSE.pthreads-w32.txt
 
