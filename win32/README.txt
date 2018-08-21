@@ -1,4 +1,4 @@
-To build, open a command promt and:
+To build, open a command prompt and:
 
     cd path\to\gz-sort
     vcvars64
