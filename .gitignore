@@ -1,3 +1,11 @@
 gz-sort
 *.o
 *.gz
+*.exe
+*.dll
+*.pdb
+*.exp
+*.lib
+*.ilk
+*.res
+win32/dist
