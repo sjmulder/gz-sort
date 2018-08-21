@@ -53,8 +53,8 @@ typedef struct
 // holds misc state and settings
 {
     char* label;
-    int64_t total_lines;
-    int64_t presort_bytes;
+    size_t total_lines;
+    size_t presort_bytes;
     int64_t* line_log;  // "pointers" to where each segment starts
     int64_t log_len;
     int pass_through;
@@ -139,7 +139,7 @@ int init_all(gzBucket* in1, gzBucket* in2, gzBucket* out, char* path1, char* pat
     return 0;
 }
 
-int append_line_gz(gzBucket* g, char* str, int length)
+int append_line_gz(gzBucket* g, char* str, size_t length)
 // this handles growth
 {
     // str does not fit, line must grow
@@ -151,7 +151,7 @@ int append_line_gz(gzBucket* g, char* str, int length)
     // now str can fit in line
     memcpy(g->line+g->line_i, str, length);
     // advance pointers along
-    g->line_i += length;
+    g->line_i += (int)length;
     return 0;
 }
 
@@ -213,9 +213,9 @@ char* subset_lines_gz(gzBucket* g)
     return load_line_gz(g);
 }
 
-int skip_lines_gz(gzBucket* g, int skip)
+int skip_lines_gz(gzBucket* g, size_t skip)
 {
-    int i;
+    size_t i;
     for (i=0; i<skip; i++)
         {load_line_gz(g);}
     return 0;
@@ -228,22 +228,22 @@ char* nway_line_gz(gzBucket* g)
 {
     if (g->subset_counter <= 0)
     {
-        skip_lines_gz(g, g->nway_skips);
+        skip_lines_gz(g, (int)g->nway_skips);
         g->subset_counter = g->nway_lines;
     }
     return subset_lines_gz(g);
 }
 
-int report_time(char* message, int start)
+time_t report_time(char* message, time_t start)
 {
     time_t finish = time(NULL);
-    int seconds = finish - start;
+    time_t seconds = finish - start;
     float minutes;
     if (seconds <= 1)
         {return 0;}
     if (seconds < 100)
     {
-        fprintf(stdout, "%s: %i seconds\n", message, seconds);
+        fprintf(stdout, "%s: %ld seconds\n", message, (long)seconds);
         return seconds;
     }
     minutes = (float)seconds / 60;
@@ -297,7 +297,8 @@ int presort_pass(gzBucket* in1, gzBucket* out, miscBucket* misc, char* line_gz(g
     char* buffer;  // fixed length
     char** strings;  // grows
     char* str1;
-    int eof, eob, str1_len;
+    int eof, eob;
+    size_t str1_len;
     int64_t i, lines, strings_len, buf_i, log_i, strings_i;
     eof = 0;
     in1->line_counter = 0;
@@ -412,7 +413,7 @@ int nway_chop_and_presort(char* in_path, char* out_path, threadBucket* t, miscBu
     misc->total_lines = out.line_counter;
     // clean up
     close_gz(&in1); close_gz(&out);
-    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, out.line_counter, misc->label, "chop/presort");
+    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, (long)out.line_counter, misc->label, "chop/presort");
     MEMCHECK;
     report_time(report, start);
     free(report);
@@ -438,7 +439,7 @@ int first_pass(char* input_path, char* output_path, miscBucket* misc)
     if (presort_pass(&in1, &out, misc, &load_line_gz))
         {return 1;}
     label2 = "presort";
-    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, in1.line_counter, misc->label, label2);
+    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, (long)in1.line_counter, misc->label, label2);
     MEMCHECK;
     misc->total_lines = in1.line_counter;
     report_time(report, start);
@@ -570,7 +571,7 @@ int middle_passes(char* input_path, char* output_path, miscBucket* misc)
         start = time(NULL);
         average = typical_segment(misc);
         merge_pass(&in1, &in2, &out, misc, unique);
-        r = asprintf(&report, "%s merge %ld", misc->label, average);
+        r = asprintf(&report, "%s merge %ld", misc->label, (long)average);
         MEMCHECK;
         report_time(report, start);
         free(report);
@@ -580,7 +581,7 @@ int middle_passes(char* input_path, char* output_path, miscBucket* misc)
     }
     if (misc->unique)
         {fprintf(stdout, "removed %ld non-unique lines\n",
-            misc->total_lines - line_counter);}
+            (long)(misc->total_lines - line_counter));}
     return 0;
 }
 
@@ -700,7 +701,7 @@ int nway_merge_pass(threadBucket* nway_table, char* out_path, miscBucket* misc)
         {total_lines += nway_table[i].misc.total_lines;}
     if (misc->unique)
         {fprintf(stdout, "removed %ld non-unique lines\n",
-            total_lines - out.line_counter);}
+            (long)(total_lines - out.line_counter));}
     // clean up all the files
     close_gz(&out);
     for (i=0; i<count; i++)
@@ -801,7 +802,7 @@ int main(int argc, char **argv)
     if (misc.presort_bytes < 1e9)
         {misc.presort_bytes /= 2;}
     else
-        {misc.presort_bytes -= 0.5e9;}
+        {misc.presort_bytes -= (size_t)0.5e9;}
 
     // debug mode
     if (misc.pass_through)
