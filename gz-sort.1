@@ -1,0 +1,91 @@
+.Dd Aug 21, 2108
+.Dt GZ-SORT 1
+.Os
+.Sh NAME
+.Nm gz-sort
+.Nd perform a merge sort over a compressed file
+.Sh SYNOPSIS
+.Nm
+.Op Fl huT
+.Op Fl S Ar n
+.Op Fl P Ar n
+.Ar source.gz
+.Ar dest.gz
+.Sh DESCRIPTION
+.Nm
+performs a merge sort over the lines in compressed file
+.Ar source.gz ,
+writing the sorted, compressed result to
+.Ar dest.gz .
+It can handle very large files.
+Sorting a terabyte-sized file takes approximately 4 MB of RAM
+and twice the disk space of the compressed size of the input.
+.Pp
+The following options are supported:
+.Bl -tag -width Ds
+.It Fl h
+Print a help message and exit.
+.It Fl u
+"Unique", remove duplicate lines from output.
+.It Fl s Ar n
+Size of traditional in-memory presort, in bytes.
+.Ql k ,
+.Ql M ,
+and
+.Ql G
+suffixes are supported.
+Defaults to 1M.
+.It Fl P Ar n
+Use
+.Ar n
+threasds.
+Experimental. Disabled by default.
+.It Fl T
+Passthrough, for debugging or benchmarks.
+.El
+.Sh PERFORMANCE
+Disk use: twice the size of
+.Ar source.gz .
+.Pp
+Run time, unthreaded: 
+.Pp
+.Bd -ragged -offset indent
+.Em seconds No * Em entropy No *
+.Po Pf log2 Po Em uncompressed_size No / Em S Pc + 2 Pc
+.Ed
+.Pp
+where
+.Em entropy
+is a fudge-factor between 1.5 for an already sorted file
+and 3 for a shuffled file,
+.Em S
+is the value of the
+.Fl S
+option,
+and
+.Em seconds
+is the output of:
+.Pp
+.Dl time gzip -dc data.gz | gzip >/dev/null
+.Pp
+Run time, multithreaded (guess):
+.Bd -ragged -offset indent
+.Em runtime_unthreaded No / Pf sqrt Po Em P Pc
+.Ed
+.Pp
+where
+.Em P
+is the value of the
+.Fl P
+option.
+.Sh AUTHORS
+Program by Kyle Keen.
+Manual by Sijmen J. Mulder
+.Aq Mt ik@sjmulder.nl .
+.Sh BUGS
+Sqrt(threads) is a terrible ratio.
+No support for uncompressed stdin streams.
+Breaks if a line is longer than the buffer size.
+Lacks all error handling.
+Ugly code with lots of ways to refactor.
+Output could use predictable flushes.
