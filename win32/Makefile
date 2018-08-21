@@ -3,11 +3,14 @@ PTHREADS = win32\vendor\pthreads-w32-2.9.1
 GETOPT   = win32\vendor\getopt-win32
 
 CFLAGS = /nologo /O2 /W3 /D _CRT_SECURE_NO_WARNINGS \
-         /I $(ZLIB) /I $(PTHREADS) /I $(GETOPT)
+         /I win32 /I $(ZLIB) /I $(PTHREADS) /I $(GETOPT)
 
 LDLIBS = $(ZLIB)\zdll.lib \
          $(PTHREADS)\pthreadVC2.lib \
          $(GETOPT)\getopt.lib
+
+HEADERS = win32\asprintf.h
+SOURCES = gz-sort.c win32\asprintf.c
 
 all: gz-sort.exe
 
@@ -41,9 +44,10 @@ clean: .phony
 	if exist getopt.dll     del getopt.dll
 	if exist gz-sort.exe    del gz-sort.exe
 	if exist gz-sort.obj    del gz-sort.obj
+	if exist asprintf.obj   del asprintf.obj
 	if exist win32\dist     rmdir /s/q win32\dist
 
-gz-sort.exe: gz-sort.c deps
-	$(CC) $(CFLAGS) $(LDFLAGS) gz-sort.c $(LDLIBS)
+gz-sort.exe: $(SOURCES) $(HEADERS) deps
+	$(CC) $(CFLAGS) $(LDFLAGS) $(SOURCES) $(LDLIBS)
 
 .phony:

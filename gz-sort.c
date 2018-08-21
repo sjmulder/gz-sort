@@ -23,6 +23,7 @@ compile: gcc -Wall -Os -o gz-sort gz-sort.c -lz
 
 #ifdef _WIN32
 #include "getopt.h"
+#include "asprintf.h"
 #define unlink _unlink        /* silence cl.exe warning */
 #else
 #include <unistd.h>
@@ -77,10 +78,10 @@ typedef struct
 {
     pthread_t sort_thread;
     gzBucket* g;
-    char label[32];
-    char source_path[512];
-    char in_path[512];
-    char out_path[512];
+    char* label;
+    char* source_path;
+    char* in_path;
+    char* out_path;
     int thread_index;
     miscBucket misc;
 } threadBucket;
@@ -397,7 +398,7 @@ int presort_pass(gzBucket* in1, gzBucket* out, miscBucket* misc, char* line_gz(g
 int nway_chop_and_presort(char* in_path, char* out_path, threadBucket* t, miscBucket* misc)
 {
     time_t start;
-    char report[512];
+    char* report;
     int r;
     gzBucket in1;
     gzBucket out;
@@ -423,9 +424,10 @@ int nway_chop_and_presort(char* in_path, char* out_path, threadBucket* t, miscBu
     misc->total_lines = out.line_counter;
     // clean up
     close_gz(&in1); close_gz(&out);
-    r = snprintf(report, sizeof(report), "%s line count: %ld\n%s %s", misc->label, (long)out.line_counter, misc->label, "chop/presort");
+    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, (long)out.line_counter, misc->label, "chop/presort");
     MEMCHECK;
     report_time(report, start);
+    free(report);
     return 0;
 }
 
@@ -436,7 +438,7 @@ int first_pass(char* input_path, char* output_path, miscBucket* misc)
     gzBucket in2;
     gzBucket out;
     time_t start;
-    char report[512];
+    char* report;
     char* label2 = "";
     int r;
     if (init_all(&in1, &in2, &out, input_path, output_path))
@@ -448,10 +450,11 @@ int first_pass(char* input_path, char* output_path, miscBucket* misc)
     if (presort_pass(&in1, &out, misc, &load_line_gz))
         {return 1;}
     label2 = "presort";
-    r = snprintf(report, sizeof(report), "%s line count: %ld\n%s %s", misc->label, (long)in1.line_counter, misc->label, label2);
+    r = asprintf(&report, "%s line count: %ld\n%s %s", misc->label, (long)in1.line_counter, misc->label, label2);
     MEMCHECK;
     misc->total_lines = in1.line_counter;
     report_time(report, start);
+    free(report);
     close_gz(&in1); close_gz(&in2); close_gz(&out);
     return 0;
 }
@@ -560,7 +563,7 @@ int middle_passes(char* input_path, char* output_path, miscBucket* misc)
     int64_t average = 0;
     int64_t line_counter = 0;
     time_t start;
-    char report[512];
+    char* report;
     int r;
     if (misc->line_log[1] == -1)
     {
@@ -579,9 +582,10 @@ int middle_passes(char* input_path, char* output_path, miscBucket* misc)
         start = time(NULL);
         average = typical_segment(misc);
         merge_pass(&in1, &in2, &out, misc, unique);
-        r = snprintf(report, sizeof(report), "%s merge %ld", misc->label, (long)average);
+        r = asprintf(&report, "%s merge %ld", misc->label, (long)average);
         MEMCHECK;
         report_time(report, start);
+        free(report);
         line_counter = out.line_counter;
         close_gz(&in1); close_gz(&in2); close_gz(&out);
         rename(output_path, input_path);
@@ -654,7 +658,7 @@ int nway_merge_pass(threadBucket* nway_table, char* out_path, miscBucket* misc)
     char* strs[MAX_THREADS+1];
     gzBucket out;
     time_t start;
-    char report[512];
+    char* report;
     char* str;
     int i, count, heap_tail, r;
     int64_t total_lines = 0;
@@ -700,9 +704,10 @@ int nway_merge_pass(threadBucket* nway_table, char* out_path, miscBucket* misc)
         }
     }
 
-    r = snprintf(report, sizeof(report), "%i-way merge", misc->nway);
+    r = asprintf(&report, "%i-way merge", misc->nway);
     MEMCHECK;
     report_time(report, start);
+    free(report);
     for (i=0; i<count; i++)
         {total_lines += nway_table[i].misc.total_lines;}
     if (misc->unique)
@@ -745,7 +750,7 @@ int main(int argc, char **argv)
     threadBucket nway_table[MAX_THREADS];
     char* input_path;
     char* output_path;
-    char temp_path[512];
+    char* temp_path;
     int i, optchar, r;
     char suffix;
     misc.pass_through = 0;
@@ -817,7 +822,7 @@ int main(int argc, char **argv)
     // simple un-threaded sort
     if (!misc.nway)
     {
-        r = snprintf(temp_path, sizeof(temp_path), "%s.temp", output_path);
+        r = asprintf(&temp_path, "%s.temp", output_path);
         MEMCHECK;
         if (first_pass(input_path, output_path, &misc))
             {return 1;}
@@ -826,6 +831,7 @@ int main(int argc, char **argv)
         middle_passes(temp_path, output_path, &misc);
         rename(temp_path, output_path);
 
+        free(temp_path);
         return 0;
     }
     // multi thread sort
@@ -835,14 +841,12 @@ int main(int argc, char **argv)
         nway_table[i].misc.nway = misc.nway;
         nway_table[i].misc.presort_bytes = misc.presort_bytes;
         nway_table[i].thread_index = i;
-
-	r = snprintf(nway_table[i].source_path, sizeof(nway_table[i].source_path), "%s", input_path);
-	MEMCHECK;
-        r = snprintf(nway_table[i].label, sizeof(nway_table[i].label), "T%i", i+1);
+        nway_table[i].source_path = input_path;
+        r = asprintf(&(nway_table[i].label), "T%i", i+1);
         MEMCHECK;
-        r = snprintf(nway_table[i].in_path, sizeof(nway_table[i].in_path), "%s.T%i.temp", output_path, i+1);
+        r = asprintf(&(nway_table[i].in_path), "%s.T%i.temp", output_path, i+1);
         MEMCHECK;
-        r = snprintf(nway_table[i].out_path, sizeof(nway_table[i].out_path), "%s.T%i.gz",  output_path, i+1);
+        r = asprintf(&(nway_table[i].out_path), "%s.T%i.gz",  output_path, i+1);
         MEMCHECK;
     }
     // run all the sorts
